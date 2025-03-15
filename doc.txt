@@ -1,0 +1,1316 @@
+access_token是公众号的全局唯一接口调用凭据，公众号调用各接口时都需使用access_token。开发者需要进行妥善保存。access_token的存储至少要保留512个字符空间。access_token的有效期目前为2个小时，需定时刷新，重复获取将导致上次获取的access_token失效。
+
+公众平台的API调用所需的access_token的使用及生成方式说明：
+
+1、建议公众号开发者使用中控服务器统一获取和刷新access_token，其他业务逻辑服务器所使用的access_token均来自于该中控服务器，不应该各自去刷新，否则容易造成冲突，导致access_token覆盖而影响业务；
+
+2、目前access_token的有效期通过返回的expires_in来传达，目前是7200秒之内的值。中控服务器需要根据这个有效时间提前去刷新新access_token。在刷新过程中，中控服务器可对外继续输出的老access_token，此时公众平台后台会保证在5分钟内，新老access_token都可用，这保证了第三方业务的平滑过渡；
+
+3、access_token的有效时间可能会在未来有调整，所以中控服务器不仅需要内部定时主动刷新，还需要提供被动刷新access_token的接口，这样便于业务服务器在API调用获知access_token已超时的情况下，可以触发access_token的刷新流程。
+
+4、对于可能存在风险的调用，在开发者进行获取 access_token调用时进入风险调用确认流程，需要用户管理员确认后才可以成功获取。具体流程为：
+
+开发者通过某IP发起调用->平台返回错误码[89503]并同时下发模板消息给公众号管理员->公众号管理员确认该IP可以调用->开发者使用该IP再次发起调用->调用成功。
+
+如公众号管理员第一次拒绝该IP调用，用户在1个小时内将无法使用该IP再次发起调用，如公众号管理员多次拒绝该IP调用，该IP将可能长期无法发起调用。平台建议开发者在发起调用前主动与管理员沟通确认调用需求，或请求管理员开启IP白名单功能并将该IP加入IP白名单列表。
+
+公众号和小程序均可以使用AppID和AppSecret调用本接口来获取access_token。AppID和AppSecret可在“微信公众平台-设置与开发--基本配置”页中获得（需要已经成为开发者，且账号没有异常状态）。**调用接口时，请登录“微信公众平台-开发-基本配置”提前将服务器IP地址添加到IP白名单中，点击查看设置方法，否则将无法调用成功。**小程序无需配置IP白名单。
+
+如长期无AppSecret的使用需求，开发者可以使用管理员账号登录公众平台，在“设置与开发-基本配置”中对AppSeceret进行冻结，提高账号的安全性。AppSecret冻结后，开发者无法使用AppSecret获取Access token（接口返回错误码40243），不影响账号基本功能的正常使用，不影响通过第三方授权调用后台接口，不影响云开发调用后台接口。开发者可以随时使用管理员账号登录公众平台，在“设置与开发-基本配置”中对AppSecret进行解冻。
+
+接口调用请求说明
+
+https请求方式: GET https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
+
+参数说明
+
+参数	是否必须	说明
+grant_type	是	获取access_token填写client_credential
+appid	是	第三方用户唯一凭证
+secret	是	第三方用户唯一凭证密钥，即appsecret
+返回说明
+
+正常情况下，微信会返回下述JSON数据包给公众号：
+
+{"access_token":"ACCESS_TOKEN","expires_in":7200}
+参数说明
+
+参数	说明
+access_token	获取到的凭证
+expires_in	凭证有效时间，单位：秒
+错误时微信会返回错误码等信息，JSON数据包示例如下（该示例为AppID无效错误）:
+
+{"errcode":40013,"errmsg":"invalid appid"}
+返回码说明
+
+返回码	说明
+-1	系统繁忙，此时请开发者稍候再试
+0	请求成功
+40001	AppSecret错误或者AppSecret不属于这个公众号，请开发者确认AppSecret的正确性
+40002	请确保grant_type字段值为client_credential
+40164	调用接口的IP地址不在白名单中，请在接口IP白名单中进行设置。
+40243	AppSecret已被冻结，请登录MP解冻后再次调用。
+89503	此IP调用需要管理员确认,请联系管理员
+89501	此IP正在等待管理员确认,请联系管理员
+89506	24小时内该IP被管理员拒绝调用两次，24小时内不可再使用该IP调用
+89507	1小时内该IP被管理员拒绝调用一次，1小时内不可再使用该IP调用
+
+
+公众号经常有需要用到一些临时性的多媒体素材的场景，例如在使用接口特别是发送消息时，对多媒体文件、多媒体消息的获取和调用等操作，是通过media_id来进行的。素材管理接口对所有认证的订阅号和服务号开放。通过本接口，公众号可以新增临时素材（即上传临时多媒体文件）。使用接口过程中有任何问题，可以前往微信开放社区 #公众号 专区发帖交流
+
+注意点：
+
+1、临时素材media_id是可复用的。
+
+2、媒体文件在微信后台保存时间为3天，即3天后media_id失效。
+
+3、上传临时素材的格式、大小限制与公众平台官网一致。
+
+图片（image）: 10M，支持PNG\JPEG\JPG\GIF格式
+
+语音（voice）：2M，播放长度不超过60s，支持AMR\MP3格式
+
+视频（video）：10MB，支持MP4格式
+
+缩略图（thumb）：64KB，支持JPG格式
+
+4、需使用https调用本接口。
+
+接口调用请求说明
+
+http请求方式：POST/FORM，使用https https://api.weixin.qq.com/cgi-bin/media/upload?access_token=ACCESS_TOKEN&type=TYPE 调用示例（使用curl命令，用FORM表单方式上传一个多媒体文件）： curl -F media=@test.jpg "https://api.weixin.qq.com/cgi-bin/media/upload?access_token=ACCESS_TOKEN&type=TYPE"
+
+参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+type	是	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb）
+media	是	form-data中媒体文件标识，有filename、filelength、content-type等信息
+返回说明
+
+正确情况下的返回JSON数据包结果如下：
+
+{"type":"TYPE","media_id":"MEDIA_ID","created_at":123456789}
+参数	描述
+type	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb，主要用于视频与音乐格式的缩略图）
+media_id	媒体文件上传后，获取标识
+created_at	媒体文件上传时间戳
+错误情况下的返回JSON数据包示例如下（示例为无效媒体类型错误）：
+
+{"errcode":40004,"errmsg":"invalid media type"}
+
+
+对于常用的素材，开发者可通过本接口上传到微信服务器，永久使用。新增的永久素材也可以在公众平台官网素材管理模块中查询管理。
+
+请注意：
+
+1、最近更新：永久图片素材新增后，将带有URL返回给开发者，开发者可以在腾讯系域名内使用（腾讯系域名外使用，图片将被屏蔽）。
+
+2、公众号的素材库保存总数量有上限：图文消息素材、图片素材上限为100000，其他类型为1000。
+
+3、素材的格式大小等要求与公众平台官网一致：
+
+图片（image）: 10M，支持bmp/png/jpeg/jpg/gif格式
+
+语音（voice）：2M，播放长度不超过60s，mp3/wma/wav/amr格式
+
+视频（video）：10MB，支持MP4格式
+
+缩略图（thumb）：64KB，支持JPG格式
+
+4、图文消息的具体内容中，微信后台将过滤外部的图片链接，图片url需通过"上传图文消息内的图片获取URL"接口上传图片获取。
+
+5、"上传图文消息内的图片获取URL"接口所上传的图片，不占用公众号的素材库中图片数量的100000个的限制，图片仅支持jpg/png格式，大小必须在1MB以下。
+
+6、图文消息支持正文中插入自己账号和其他公众号已群发文章链接的能力。
+
+上传图文消息内的图片获取URL
+本接口所上传的图片不占用公众号的素材库中图片数量的100000个的限制。图片仅支持jpg/png格式，大小必须在1MB以下。
+
+接口调用请求说明
+
+http请求方式: POST，https协议 https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=ACCESS_TOKEN 调用示例（使用curl命令，用FORM表单方式上传一个图片）： curl -F media=@test.jpg "https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=ACCESS_TOKEN"
+
+参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+media	是	form-data中媒体文件标识，有filename、filelength、content-type等信息
+返回说明 正常情况下的返回结果为：
+
+{
+    "url":  "http://mmbiz.qpic.cn/mmbiz/gLO17UPS6FS2xsypf378iaNhWacZ1G1UplZYWEYfwvuU6Ont96b1roYs CNFwaRrSaKTPCUdBK9DgEHicsKwWCBRQ/0"
+
+}
+其中url就是上传图片的URL，可放置图文消息中使用。
+
+新增其他类型永久素材
+接口调用请求说明
+
+通过POST表单来调用接口，表单id为media，包含需要上传的素材内容，有filename、filelength、content-type等信息。请注意：图片素材将进入公众平台官网素材管理模块中的默认分组。
+
+http请求方式: POST，需使用https https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=ACCESS_TOKEN&type=TYPE 调用示例（使用curl命令，用FORM表单方式新增一个其他类型的永久素材，curl命令的使用请自行查阅资料）
+
+参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+type	是	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb）
+media	是	form-data中媒体文件标识，有filename、filelength、content-type等信息
+新增永久视频素材需特别注意
+
+在上传视频素材时需要POST另一个表单，id为description，包含素材的描述信息，内容格式为JSON，格式如下：
+
+{
+    "title":VIDEO_TITLE,
+    "introduction":INTRODUCTION
+}
+新增永久视频素材的调用示例：
+
+curl "https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=ACCESS_TOKEN&type=TYPE" -F media=@media.file -F description='{"title":VIDEO_TITLE, "introduction":INTRODUCTION}'
+
+参数说明
+
+参数	是否必须	说明
+title	是	视频素材的标题，不超过30个字
+返回说明
+
+{
+  "media_id":MEDIA_ID,
+  "url":URL
+}
+返回参数说明
+
+参数	描述
+media_id	新增的永久素材的media_id
+url	新增的图片素材的图片URL（仅新增图片素材时会返回该字段）
+错误情况下的返回JSON数据包示例如下（示例为无效媒体类型错误）：
+
+{"errcode":40007,"errmsg":"invalid media_id"}
+
+在新增了永久素材后，开发者可以分类型获取永久素材的列表。
+
+请注意：
+
+1、获取永久素材的列表，也包含公众号在公众平台官网素材管理模块中新建的图文消息、语音、视频等素材 2、临时素材无法通过本接口获取 3、调用该接口需https协议
+
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token=ACCESS_TOKEN
+
+调用示例
+
+{
+    "type":TYPE,
+    "offset":OFFSET,
+    "count":COUNT
+}
+参数说明
+
+参数	是否必须	说明
+type	是	素材的类型，图片（image）、视频（video）、语音 （voice）、图文（news）
+offset	是	从全部素材的该偏移位置开始返回，0表示从第一个素材 返回
+count	是	返回素材的数量，取值在1到20之间
+返回说明
+
+永久图文消息素材列表的响应如下：
+
+{
+   "total_count": TOTAL_COUNT,
+   "item_count": ITEM_COUNT,
+   "item": [{
+       "media_id": MEDIA_ID,
+       "content": {
+           "news_item": [{
+               "title": TITLE,
+               "thumb_media_id": THUMB_MEDIA_ID,
+               "show_cover_pic": SHOW_COVER_PIC(0 / 1),
+               "author": AUTHOR,
+               "digest": DIGEST,
+               "content": CONTENT,
+               "url": URL,
+               "content_source_url": CONTETN_SOURCE_URL
+           },
+           //多图文消息会在此处有多篇文章
+           ]
+        },
+        "update_time": UPDATE_TIME
+    },
+    //可能有多个图文消息item结构
+  ]
+}
+其他类型（图片、语音、视频）的返回如下：
+
+{
+   "total_count": TOTAL_COUNT,
+   "item_count": ITEM_COUNT,
+   "item": [{
+       "media_id": MEDIA_ID,
+       "name": NAME,
+       "update_time": UPDATE_TIME,
+       "url":URL
+   },
+   //可能会有多个素材
+   ]
+}
+返回参数说明
+
+参数	描述
+total_count	该类型的素材的总数
+item_count	本次调用获取的素材的数量
+title	图文消息的标题
+thumb_media_id	图文消息的封面图片素材id（必须是永久mediaID）
+show_cover_pic	是否显示封面，0为false，即不显示，1为true，即显示
+author	作者
+digest	图文消息的摘要，仅有单图文消息才有摘要，多图文此处为空
+content	图文消息的具体内容，支持HTML标签，必须少于2万字符，小于1M，且此处会去除JS
+url	图文页的URL，或者，当获取的列表是图片素材列表时，该字段是图片的URL
+content_source_url	图文消息的原文地址，即点击“阅读原文”后的URL
+update_time	这篇图文消息素材的最后更新时间
+name	文件名称
+错误情况下的返回JSON数据包示例如下（示例为无效媒体类型错误）：
+
+{"errcode":40007,"errmsg":"invalid media_id"}
+
+开发者可新增常用的素材到草稿箱中进行使用。上传到草稿箱中的素材被群发或发布后，该素材将从草稿箱中移除。新增草稿可在公众平台官网-草稿箱中查看和管理。
+
+接口请求说明
+http 请求方式：POST（请使用https协议）https://api.weixin.qq.com/cgi-bin/draft/add?access_token=ACCESS_TOKEN
+
+调用示例
+
+{
+    "articles": [
+        // 图文消息结构
+        {
+            "article_type":"news",
+            "title":TITLE,
+            "author":AUTHOR,
+            "digest":DIGEST,
+            "content":CONTENT,
+            "content_source_url":CONTENT_SOURCE_URL,
+            "thumb_media_id":THUMB_MEDIA_ID,
+            "need_open_comment":0,
+            "only_fans_can_comment":0,
+            "pic_crop_235_1":X1_Y1_X2_Y2,
+            "pic_crop_1_1":X1_Y1_X2_Y2
+        },
+        // 图片消息结构
+        {
+            "article_type":"newspic",
+            "title":TITLE,
+            "content":CONTENT,
+            "need_open_comment":0,
+            "only_fans_can_comment":0,
+            "image_info":{
+                "image_list":[
+                    {
+                        "image_media_id":IMAGE_MEDIA_ID
+                    }
+                ]
+            },
+            "cover_info":{
+                "crop_percent_list":[
+                    {
+                        "ratio": "1_1",
+                        "x1":"0.166454",
+                        "y1":"0",
+                        "x2":"0.833545",
+                        "y2":"1"
+                    }
+                    // 如有其他比例的裁剪需求，可继续在此处填写
+                ]
+            },
+            "product_info": {
+                "footer_product_info": {
+                    "product_key":PRODUCT_KEY
+                }
+            }
+        }
+    ]
+}
+请求参数说明
+
+参数	是否必须	说明
+article_type	否	文章类型，分别有图文消息（news）、图片消息（newspic），不填默认为图文消息（news）
+title	是	标题
+author	否	作者
+digest	否	图文消息的摘要，仅有单图文消息才有摘要，多图文此处为空。如果本字段为没有填写，则默认抓取正文前54个字。
+content	是	图文消息的具体内容，支持HTML标签，必须少于2万字符，小于1M，且此处会去除JS,涉及图片url必须来源 "上传图文消息内的图片获取URL"接口获取。外部图片url将被过滤。 图片消息则仅支持纯文本和部分特殊功能标签如商品，商品个数不可超过50个
+content_source_url	否	图文消息的原文地址，即点击“阅读原文”后的URL
+thumb_media_id	是	图文消息的封面图片素材id（必须是永久MediaID）
+need_open_comment	否	Uint32 是否打开评论，0不打开(默认)，1打开
+only_fans_can_comment	否	Uint32 是否粉丝才可评论，0所有人可评论(默认)，1粉丝才可评论
+pic_crop_235_1	否	封面裁剪为2.35:1规格的坐标字段。以原始图片（thumb_media_id）左上角（0,0），右下角（1,1）建立平面坐标系，经过裁剪后的图片，其左上角所在的坐标即为（X1,Y1）,右下角所在的坐标则为（X2,Y2），用分隔符_拼接为X1_Y1_X2_Y2，每个坐标值的精度为不超过小数点后6位数字。示例见下图，图中(X1,Y1) 等于（0.1945,0）,(X2,Y2)等于（1,0.5236），所以请求参数值为0.1945_0_1_0.5236。
+pic_crop_1_1	否	封面裁剪为1:1规格的坐标字段，裁剪原理同pic_crop_235_1，裁剪后的图片必须符合规格要求。
+image_info	是	图片消息里的图片相关信息，图片数量最多为20张，首张图片即为封面图
+image_media_id	是	图片消息里的图片素材id（必须是永久MediaID）
+crop_percent_list	否	封面裁剪信息，裁剪比例ratio支持：“1_1”，“16_9”,“2.35_1”。以图片左上角（0,0），右下角（1,1）建立平面坐标系，经过裁剪后的图片，其左上角所在的坐标填入x1，y1参数，右下角所在的坐标填入x2，y2参数
+product_info	否	商品相关信息
+footer_product_info	否	文末插入商品相关信息
+product_key	否	商品key
+
+
+接口返回说明
+{
+   "media_id":MEDIA_ID
+}
+返回参数说明
+
+参数	描述
+media_id	上传后的获取标志，长度不固定，但不会超过 128 字符
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+53404	账号已被限制带货能力，请删除商品后重试	
+53405	插入商品信息有误，请检查后重试	请检查请求参数是否合法，以及商品状态是否正常
+53406	请先开通带货能力
+
+
+新增草稿后，开发者可以根据草稿指定的字段来下载草稿。
+
+接口请求说明
+http 请求方式：POST（请使用https协议）https://api.weixin.qq.com/cgi-bin/draft/get?access_token=ACCESS_TOKEN
+
+调用示例
+
+{
+    "media_id":MEDIA_ID
+}
+请求参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+media_id	是	要获取的草稿的media_id
+接口返回说明
+{
+    "news_item": [
+        {
+            "article_type":"news",
+            "title":TITLE,
+            "author":AUTHOR,
+            "digest":DIGEST,
+            "content":CONTENT,
+            "content_source_url":CONTENT_SOURCE_URL,
+            "thumb_media_id":THUMB_MEDIA_ID,
+            "show_cover_pic":0,
+            "need_open_comment":0,
+            "only_fans_can_comment":0,
+            "url":URL
+        },
+        {
+            "article_type":"newspic",
+            "title":TITLE,
+            "content":CONTENT,
+            "thumb_media_id":THUMB_MEDIA_ID,
+            "need_open_comment":0,
+            "only_fans_can_comment":0,
+            "image_info":{
+                "image_list":[
+                    {
+                        "image_media_id":IMAGE_MEDIA_ID
+                    }
+                ]
+            },
+            "product_info": {
+                "footer_product_info": {
+                    "product_key":PRODUCT_KEY
+                }
+            },
+            "url":URL
+        }
+    ]
+}
+返回参数说明
+
+参数	描述
+article_type	文章类型，分别有图文消息（news）、图片消息（newspic），不填默认为图文消息（news）
+title	标题
+author	作者
+digest	图文消息的摘要，仅有单图文消息才有摘要，多图文此处为空。
+content	图文消息的具体内容，支持HTML标签，必须少于2万字符，小于1M，且此处会去除JS。
+content_source_url	图文消息的原文地址，即点击“阅读原文”后的URL
+thumb_media_id	图文消息的封面图片素材id（一定是永久MediaID）
+show_cover_pic	是否在正文显示封面。平台已不支持此功能，因此默认为0，即不展示
+need_open_comment	Uint32 是否打开评论，0不打开(默认)，1打开
+only_fans_can_comment	Uint32 是否粉丝才可评论，0所有人可评论(默认)，1粉丝才可评论
+url	草稿的临时链接
+image_info	图片消息里的图片相关信息，图片数量最多为20张，首张图片即为封面图
+image_media_id	图片消息里的图片素材id（必须是永久MediaID）
+product_info	商品相关信息
+footer_product_info	文末插入商品相关信息
+product_key	商品key
+错误情况下的返回JSON数据包示例如下（示例为无效媒体错误）：
+
+{"errcode":40007,"errmsg":"invalid media_id"}
+
+
+开发者需要先将图文素材以草稿的形式保存（见“草稿箱/新建草稿”，如需从已保存的草稿中选择，见“草稿箱/获取草稿列表”），选择要发布的草稿 media_id 进行发布
+
+http 请求方式：POST（请使用https协议）https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token=ACCESS_TOKEN
+
+调用示例
+
+{
+    "media_id": MEDIA_ID
+}
+请求参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+media_id	是	要发布的草稿的media_id
+返回示例
+
+{
+   "errcode":0,
+   "errmsg":"ok",
+   "publish_id":"100000001",
+}
+返回参数说明
+
+参数	说明
+errcode	错误码
+errmsg	错误信息
+publish_id	发布任务的id
+msg_data_id	消息的数据ID
+请注意：正常情况下调用成功时，errcode将为0，此时只意味着发布任务提交成功，并不意味着此时发布已经完成，所以，仍有可能在后续的发布过程中出现异常情况导致发布失败，如原创声明失败、平台审核不通过等。
+
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+53503	该草稿未通过发布检查	检查下草稿信息
+53504		需前往公众平台官网使用草稿
+53505	请手动保存成功后再发表	请前往公众平台官网手动保存成功后再发表
+
+开发者可以尝试通过下面的发布状态轮询接口获知发布情况。
+
+http 请求方式：POST（请使用https协议）https://api.weixin.qq.com/cgi-bin/freepublish/get?access_token=ACCESS_TOKEN
+
+调用示例
+
+{
+    "publish_id":"100000001"
+}
+请求参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+publish_id	是	发布任务id
+返回示例1（成功）
+
+{
+    "publish_id":"100000001",
+    "publish_status":0,
+    "article_id":ARTICLE_ID,
+    "article_detail":{
+        "count":1,
+        "item":[
+            {
+                "idx":1,
+                "article_url": ARTICLE_URL
+            }
+            //如果 count 大于 1，此处会有多篇文章
+        ]
+    },
+    "fail_idx": []
+}
+返回示例2（发布中）
+
+{
+    "publish_id":"100000001",
+    "publish_status":1,
+    "fail_idx": []
+}
+返回示例3（原创审核不通过时）
+
+{
+    "publish_id":"100000001",
+    "publish_status":2,
+    "fail_idx":[1,2]
+}
+返回参数说明
+
+参数	说明
+publish_id	发布任务id
+publish_status	发布状态，0:成功, 1:发布中，2:原创失败, 3: 常规失败, 4:平台审核不通过, 5:成功后用户删除所有文章, 6: 成功后系统封禁所有文章
+article_id	当发布状态为0时（即成功）时，返回图文的 article_id，可用于“客服消息”场景
+count	当发布状态为0时（即成功）时，返回文章数量
+idx	当发布状态为0时（即成功）时，返回文章对应的编号
+article_url	当发布状态为0时（即成功）时，返回图文的永久链接
+fail_idx	当发布状态为2或4时，返回不通过的文章编号，第一篇为 1；其他发布状态则为空
+
+一、前言
+在公众平台网站上，为订阅号提供了每天一条的群发权限，为服务号提供每月（自然月）4条的群发权限。而对于某些具备开发能力的公众号运营者，可以通过高级群发接口，实现更灵活的群发能力。
+
+请注意：
+
+对于认证订阅号，群发接口每天可成功调用1次，此次群发可选择发送给全部用户或某个标签；
+对于认证服务号虽然开发者使用高级群发接口的每日调用次数是有限制的（见《接口调用频次限制说明》），但是用户每月只能接收4条，无论在公众平台网站上，还是使用接口群发，用户每月只能接收4条群发消息，多于4条的群发将对该用户发送失败；
+开发者可以使用预览接口校对消息样式和排版，通过预览接口可发送编辑好的消息给指定用户校验效果；
+群发过程中，微信后台会自动进行图文消息原创校验，请提前设置好相关参数(send_ignore等)；
+开发者可以主动设置 clientmsgid 来避免重复推送。
+群发接口每分钟限制请求60次，超过限制的请求会被拒绝。
+图文消息正文中插入自己账号和其他公众号已群发文章链接的能力。
+对于已开启API群发保护的账号，群发全部用户时需要等待管理员进行确认，如管理员拒绝或30分钟内没有确认，该次群发失败。用户可通过“设置-安全中心-风险操作保护”中关闭API群发保护功能。
+群发图文消息的过程如下：
+
+首先，预先将图文消息中需要用到的图片，使用上传图文消息内图片接口，上传成功并获得图片 URL；
+上传图文消息素材，需要用到图片时，请使用上一步获取的图片 URL；
+使用对用户标签的群发，或对 OpenID 列表的群发，将图文消息群发出去，群发时微信会进行原创校验，并返回群发操作结果；
+在上述过程中，如果需要，还可以预览图文消息、查询群发状态，或删除已群发的消息等。
+群发图片、文本等其他消息类型的过程如下：
+
+如果是群发文本消息，则直接根据下面的接口说明进行群发即可；
+如果是群发图片、视频等消息，则需要预先通过素材管理接口准备好 mediaID。
+关于群发时使用is_to_all为true使其进入公众号在微信客户端的历史消息列表：
+
+使用is_to_all为true且成功群发，会使得此次群发进入历史消息列表，群发成功后 media_id 会失效，后台草稿也会被自动删除。
+为防止异常，认证订阅号在一天内，只能使用is_to_all为true进行群发一次，或者在公众平台官网群发（不管本次群发是对全体还是对某个分组）一次。以避免一天内有2条群发进入历史消息列表。
+类似地，服务号在一个月内，使用is_to_all为true群发的次数，加上公众平台官网群发（不管本次群发是对全体还是对某个分组）的次数，最多只能是4次。
+设置is_to_all为false时是可以多次群发的，但每个用户只会收到最多4条，且这些群发不会进入历史消息列表。
+其他注意事项：
+
+请开发者注意，本接口中所有使用到media_id的地方，现在都可以使用素材管理中的永久素材media_id了。请但注意，使用同一个素材群发出去的链接是一样的，这意味着，删除某一次群发，会导致整个链接失效。
+对于群发和预览接口中的图文消息 (mpnews) ，请使用通过 “草稿箱 / 新建草稿” 接口获得的 media_id
+二、接口目录
+1 上传图文消息内的图片获取URL【订阅号与服务号认证后均可用】
+
+2 上传图文消息素材【订阅号与服务号认证后均可用】
+
+3 根据标签进行群发【订阅号与服务号认证后均可用】
+
+4 根据OpenID列表群发【订阅号不可用，服务号认证后可用】
+
+5 删除群发【订阅号与服务号认证后均可用】
+
+6 预览接口【订阅号与服务号认证后均可用】
+
+7 查询群发消息发送状态【订阅号与服务号认证后均可用】
+
+8 事件推送群发结果
+
+9 使用 clientmsgid 参数，避免重复推送
+
+10 获取群发速度
+
+11 设置群发速度
+
+
+1、上传图文消息内的图片获取URL【订阅号与服务号认证后均可用】
+请注意，本接口所上传的图片不占用公众号的素材库中图片数量的5000个的限制。图片仅支持jpg/png格式，大小必须在1MB以下。
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=ACCESS_TOKEN
+
+调用示例（使用curl命令，用FORM表单方式上传一个图片）：
+
+curl -F media=@test.jpg "https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=ACCESS_TOKEN"
+
+参数说明
+
+参数	是否必须	说明
+access_token	是	调用接口凭证
+media	是	form-data中媒体文件标识，有filename、filelength、content-type等信息
+返回说明 正常情况下的返回结果为：
+
+{
+   "url":"http://mmbiz.qpic.cn/mmbiz/gLO17UPS6FS2xsypf378iaNhWacZ1G1UplZYWEYfwvuU6Ont96b1roYs CNFwaRrSaKTPCUdBK9DgEHicsKwWCBRQ/0"
+}
+其中url就是上传图片的URL，可用于后续群发中，放置到图文消息中。
+错误时微信会返回错误码等信息，请根据错误码查询错误信息
+
+2、上传图文消息素材【订阅号与服务号认证后均可用】
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/media/uploadnews?access_token=ACCESS_TOKEN
+
+POST数据示例如下：
+
+{
+   "articles": [	 
+        {
+            "thumb_media_id":"qI6_Ze_6PtV7svjolgs-rN6stStuHIjs9_DidOHaj0Q-mwvBelOXCFZiq2OsIU-p",
+            "author":"xxx",		
+            "title":"Happy Day",		 
+            "content_source_url":"www.qq.com",		
+            "content":"content",		 
+            "digest":"digest",
+            "show_cover_pic":1,
+            "need_open_comment":1,
+            "only_fans_can_comment":1
+        },	 
+        {
+            "thumb_media_id":"qI6_Ze_6PtV7svjolgs-rN6stStuHIjs9_DidOHaj0Q-mwvBelOXCFZiq2OsIU-p",
+            "author":"xxx",		
+            "title":"Happy Day",		 
+            "content_source_url":"www.qq.com",		
+            "content":"content",		 
+            "digest":"digest",
+            "show_cover_pic":0,
+            "need_open_comment":1,
+            "only_fans_can_comment":1
+        }
+   ]
+}
+参数说明
+
+参数	是否必须	说明
+Articles	是	图文消息，一个图文消息支持1到8条图文
+thumb_media_id	是	图文消息缩略图的media_id，可以在素材管理-新增临时素材中获得
+author	否	图文消息的作者
+title	是	图文消息的标题
+content_source_url	否	在图文消息页面点击“阅读原文”后的页面，受安全限制，如需跳转Appstore，可以使用itun.es或appsto.re的短链服务，并在短链后增加 #wechat_redirect 后缀。
+content	是	图文消息页面的内容，支持HTML标签。具备微信支付权限的公众号，可以使用a标签，其他公众号不能使用，如需插入小程序卡片，可参考下文。
+digest	否	图文消息的描述，如本字段为空，则默认抓取正文前64个字
+show_cover_pic	否	是否显示封面，1为显示，0为不显示
+need_open_comment	否	Uint32 是否打开评论，0不打开，1打开
+only_fans_can_comment	否	Uint32 是否粉丝才可评论，0所有人可评论，1粉丝才可评论
+如果需要在群发图文中插入小程序，则在调用上传图文消息素材接口时，需在content字段中添加小程序跳转链接，有以下三种样式的可供选择。
+
+小程序卡片跳转小程序，代码示例：
+
+<mp-common-miniprogram data-miniprogram-appid="wx123123123" data-miniprogram-path="pages/index/index" data-miniprogram-title="小程序示例" data-miniprogram-imageurl="http://example.com/demo.jpg" data-miniprogram-type="card"></mp-common-miniprogram>
+文字跳转小程序，代码示例：
+
+<p><a data-miniprogram-appid="wx123123123" data-miniprogram-path="pages/index" href="">点击文字跳转小程序</a></p>
+图片跳转小程序，代码示例：
+
+<p><a data-miniprogram-appid="wx123123123" data-miniprogram-path="pages/index" href=""><img src="https://mmbiz.qpic.cn/mmbiz_jpg/demo/0?wx_fmt=jpg" alt="" data-width="null" data-ratio="NaN"></a></p>
+参数说明
+
+参数	是否必须	说明
+data-miniprogram-appid	是	小程序的AppID
+data-miniprogram-path	是	小程序要打开的路径
+data-miniprogram-title	是	小程序卡片的标题，不超过35个字
+data-miniprogram-imageurl	是	小程序卡片的封面图链接，图片必须为1080*864像素
+data-miniprogram-type	是	指定小程序使用卡片形式渲染
+返回说明
+
+返回数据示例（正确时的JSON返回结果）：
+
+{
+   "type":"news",
+   "media_id":"CsEf3ldqkAYJAU6EJeIkStVDSvffUJ54vqbThMgplD-VJXXof6ctX5fI6-aYyUiQ",
+   "created_at":1391857799
+}
+参数	说明
+type	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb），图文消息（news）
+media_id	媒体文件/图文消息上传后获取的唯一标识
+created_at	媒体文件上传时间
+错误时微信会返回错误码等信息，请根据错误码查询错误信息
+图文消息群发前将进行原创校验
+1）群发接口新增原创校验流程
+开发者调用群发接口进行图文消息的群发时，微信会将开发者准备群发的文章，与公众平台原创库中的文章进行比较，校验结果分为以下几种：
+
+当前准备群发的文章，未命中原创库中的文章，则可以群发。
+
+当前准备群发的文章，已命中原创库中的文章，则：
+
+2.1 若原创作者允许转载该文章，则可以进行群发。群发时，会自动替换成原文的样式，且会自动将文章注明为转载并显示来源。
+
+若希望修改原文内容或样式，或群发时不显示转载来源，可自行与原创公众号作者联系并获得授权之后再进行群发。
+
+2.2 若原创作者禁止转载该文章，则不能进行群发。
+
+若希望转载该篇文章，可自行与原创公众号作者联系并获得授权之后再进行群发。
+
+2）群发接口新增 send_ignore_reprint 参数
+群发接口新增 send_ignore_reprint 参数，开发者可以对群发接口的 send_ignore_reprint 参数进行设置，指定待群发的文章被判定为转载时，是否继续群发。
+
+当 send_ignore_reprint 参数设置为1时，文章被判定为转载时，且原创文允许转载时，将继续进行群发操作。
+
+当 send_ignore_reprint 参数设置为0时，文章被判定为转载时，将停止群发操作。
+
+send_ignore_reprint 默认为0。
+
+群发操作的相关返回码，可以参考全局返回码说明文档。
+
+
+3、根据标签进行群发【订阅号与服务号认证后均可用】
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/sendall?access_token=ACCESS_TOKEN
+
+POST数据示例如下：
+
+图文消息（注意图文消息的media_id需要通过上述方法，或通过 “草稿箱 / 新建草稿” 接口来得到,海外微信公众号仅支持发送图文(mpnews)消息）：
+
+{
+   "filter":{
+      "is_to_all":false,
+      "tag_id":2
+   },
+   "mpnews":{
+      "media_id":"123dsdajkasd231jhksad"
+   },
+    "msgtype":"mpnews",
+    "send_ignore_reprint":0
+}
+文本：
+
+{
+   "filter":{
+      "is_to_all":false,
+      "tag_id":2
+   },
+   "text":{
+      "content":"CONTENT"
+   },
+    "msgtype":"text"
+}
+语音/音频（注意此处media_id需通过素材管理->新增素材来得到）：
+
+{
+   "filter":{
+      "is_to_all":false,
+      "tag_id":2
+   },
+   "voice":{
+      "media_id":"123dsdajkasd231jhksad"
+   },
+    "msgtype":"voice"
+}
+图片（注意此处media_id需通过素材管理->新增素材来得到）：
+
+{
+   "filter":{
+      "is_to_all":false,
+      "tag_id":2
+   },
+   "images": {
+      "media_ids": [
+         "aaa",
+         "bbb",
+         "ccc"
+      ],
+      "recommend": "xxx",
+      "title": "yyy",
+      "need_open_comment": 1,
+      "only_fans_can_comment": 0
+   },
+   "msgtype":"image"
+}
+视频
+
+此处media_id需通过素材管理->新增素材来得到：
+
+{
+   "filter":{
+      "is_to_all":false,
+      "tag_id":2
+   },
+   "mpvideo":{
+      "media_id":"IhdaAQXuvJtGzwwc0abfXnzeezfO0NgPK6AQYShD8RQYMTtfzbLdBIQkQziv2XJc"
+   },
+    "msgtype":"mpvideo"
+}
+卡券消息（注意图文消息的media_id需要通过上述方法来得到）：
+
+{
+   "filter":{
+    "is_to_all":false,
+      "tag_id":"2"
+   },
+  "wxcard":{              
+    "card_id":"123dsdajkasd231jhksad"         
+    },
+   "msgtype":"wxcard"
+}
+参数说明
+
+参数	是否必须	说明
+filter	是	用于设定图文消息的接收者
+is_to_all	否	用于设定是否向全部用户发送，值为true或false，选择true该消息群发给所有用户，选择false可根据tag_id发送给指定群组的用户
+tag_id	否	群发到的标签的tag_id，参见用户管理中用户分组接口，若is_to_all值为true，可不填写tag_id
+mpnews	是	用于设定即将发送的图文消息
+media_id	是	用于群发的消息的media_id
+recommend	否	推荐语
+msgtype	是	群发的消息类型，图文消息为mpnews，文本消息为text，语音为voice，音乐为music，图片为image，视频为video，卡券为wxcard
+title	否	消息的标题(对于图片消息，不填则默认为“分享图片”)
+description	否	消息的描述
+thumb_media_id	是	视频缩略图的媒体ID
+send_ignore_reprint	是	图文消息被判定为转载时，是否继续群发。 1为继续群发（转载），0为停止群发。 该参数默认为0。
+返回说明
+
+参数	说明
+type	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb），图文消息为news
+errcode	错误码
+errmsg	错误信息
+msg_id	消息发送任务的ID
+msg_data_id	消息的数据ID，该字段只有在群发图文消息时，才会出现。可以用于在图文分析数据接口中，获取到对应的图文消息的数据，是图文分析数据接口中的msgid字段中的前半部分，详见图文分析数据接口中的msgid字段的介绍。
+请注意：在返回成功时，意味着群发任务提交成功，并不意味着此时群发已经结束，所以，仍有可能在后续的发送过程中出现异常情况导致用户未收到消息，如消息有时会进行审核、服务器不稳定等。此外，群发任务一般需要较长的时间才能全部发送完毕，请耐心等待。
+
+返回数据示例（正确时的JSON返回结果）：
+
+{
+   "errcode":0,
+   "errmsg":"send job submission success",
+   "msg_id":34182, 
+   "msg_data_id": 206227730
+}
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+41040	字数不足，不能声明原创保护	字数不能过少
+45062	已接广告，不支持api群发	请到微信公众平台网站群发
+48021	该草稿最后一次是系统自动保存的，不允许群发	请到微信公众平台重新编辑保存该草稿
+
+4、根据OpenID列表群发【订阅号不可用，服务号认证后可用】
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/send?access_token=ACCESS_TOKEN
+
+POST数据示例如下：
+
+图文消息（注意图文消息的media_id需要通过上述方法来得到）：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+   "mpnews":{
+      "media_id":"123dsdajkasd231jhksad"
+   },
+    "msgtype":"mpnews",
+    "send_ignore_reprint":0
+}
+文本：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+    "msgtype": "text",
+    "text": { "content": "hello from boxer."}
+}
+语音：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+   "voice":{
+      "media_id":"mLxl6paC7z2Tl-NJT64yzJve8T9c8u9K2x-Ai6Ujd4lIH9IBuF6-2r66mamn_gIT"
+   },
+    "msgtype":"voice"
+}
+图片：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+   "images": {
+      "media_ids": [
+         "aaa",
+         "bbb",
+         "ccc"
+      ],
+      "recommend": "xxx",
+      "title": "yyy",
+      "need_open_comment": 1,
+      "only_fans_can_comment": 0
+   },
+   "msgtype":"image"
+}
+视频：
+
+此处media_id需通过素材管理->新增素材来得到：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+   "mpvideo":{
+      "media_id":"123dsdajkasd231jhksad",
+      "title":"TITLE",
+      "description":"DESCRIPTION"
+   },
+    "msgtype":"mpvideo"
+}
+卡券：
+
+{
+   "touser":[
+    "OPENID1",
+    "OPENID2"
+   ],
+    "wxcard": {"card_id":"123dsdajkasd231jhksad"}
+    "msgtype":"wxcard"
+}
+参数说明
+
+参数	是否必须	说明
+touser	是	填写图文消息的接收者，一串OpenID列表，OpenID最少2个，最多10000个
+mpnews	是	用于设定即将发送的图文消息
+media_id	是	用于群发的图文消息的media_id
+recommend	否	推荐语
+msgtype	是	群发的消息类型，图文消息为mpnews，文本消息为text，语音为voice，音乐为music，图片为image，视频为video，卡券为wxcard
+title	否	消息的标题(对于图片消息，不填则默认为“分享图片”)
+description	否	消息的描述
+thumb_media_id	是	视频缩略图的媒体ID
+send_ignore_reprint	是	图文消息被判定为转载时，是否继续群发。 1为继续群发（转载），0为停止群发。 该参数默认为0。
+返回说明
+
+参数	说明
+type	媒体文件类型，分别有图片（image）、语音（voice）、视频（video）和缩略图（thumb），次数为news，即图文消息
+errcode	错误码
+errmsg	错误信息
+msg_id	消息发送任务的ID
+msg_data_id	消息的数据ID，，该字段只有在群发图文消息时，才会出现。可以用于在图文分析数据接口中，获取到对应的图文消息的数据，是图文分析数据接口中的msgid字段中的前半部分，详见图文分析数据接口中的msgid字段的介绍。
+请注意：在返回成功时，意味着群发任务提交成功，并不意味着此时群发已经结束，所以，仍有可能在后续的发送过程中出现异常情况导致用户未收到消息，如消息有时会进行审核、服务器不稳定等。此外，群发任务一般需要较长的时间才能全部发送完毕，请耐心等待。
+
+返回数据示例（正确时的JSON返回结果）：
+
+{
+   "errcode":0,
+   "errmsg":"send job submission success",
+   "msg_id":34182, 
+   "msg_data_id": 206227730
+}
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+41040	不符合声明文字原创的要求	字数≥300字，才能声明文字原创
+45062	已接广告，不支持api群发	请到微信公众平台网站群发
+48021	该草稿最后一次是系统自动保存的，不允许群发	请到微信公众平台重新编辑保存该草稿
+
+5、删除群发【订阅号与服务号认证后均可用】
+群发之后，随时可以通过该接口删除群发。
+
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/delete?access_token=ACCESS_TOKEN
+
+POST数据示例如下：
+
+{
+   "msg_id":30124,
+   "article_idx":2
+}
+参数说明
+
+参数	是否必须	说明
+msg_id	否	发送出去的消息ID
+article_idx	否	要删除的文章在图文消息中的位置，第一篇编号为1，该字段不填或填0会删除全部文章
+url	否	要删除的文章url，当msg_id未指定时该参数才生效
+请注意：
+
+msg_id和url中必须有一个参数有传值，当两个参数都有值时只有msg_id有效。
+article_idx只有在msg_id有传值的时候才生效。
+只有通过api发送的并且已经发送成功的消息才能删除。
+删除消息是将消息的图文详情页失效，已经收到的用户，还是能在其本地看到消息卡片。
+删除群发消息只能删除图文消息和视频消息，其他类型的消息一经发送，无法删除。
+如果多次群发发送的是一个图文消息，那么删除其中一次群发，就会删除掉这个图文消息页，导致所有群发都失效。
+返回说明
+
+参数	说明
+errcode	错误码
+errmsg	错误信息
+返回数据示例（正确时的JSON返回结果）：
+
+{
+   "errcode":0,
+   "errmsg":"ok"
+}
+
+6、预览接口【订阅号与服务号认证后均可用】
+开发者可通过该接口发送消息给指定用户，在手机端查看消息的样式和排版。为了满足第三方平台开发者的需求，在保留对openID预览能力的同时，增加了对指定微信号发送预览的能力，但该能力每日调用次数有限制（100次），请勿滥用。
+
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/preview?access_token=ACCESS_TOKEN
+
+POST数据示例如下：
+
+图文消息（其中media_id与根据分组群发中的media_id相同）：
+
+{
+   "touser":"OPENID", 
+   "mpnews":{              
+     "media_id":"123dsdajkasd231jhksad"               
+    },
+   "msgtype":"mpnews" 
+}
+文本：
+
+{     
+    "touser":"OPENID",
+    "text":{           
+      "content":"CONTENT"            
+    },     
+    "msgtype":"text"
+}
+语音（其中media_id与根据分组群发中的media_id相同）：
+
+{
+    "touser":"OPENID",
+    "voice":{              
+     "media_id":"123dsdajkasd231jhksad"
+    },
+    "msgtype":"voice" 
+}
+图片（其中media_id与根据分组群发中的media_id相同）：
+
+{
+    "touser":"OPENID",
+    "image":{      
+     "media_id":"123dsdajkasd231jhksad"
+    },
+    "msgtype":"image" 
+}
+视频（其中media_id与根据分组群发中的media_id相同）：
+
+{
+   "touser":"OPENID",
+   "mpvideo": {     
+      "media_id":"IhdaAQXuvJtGzwwc0abfXnzeezfO0NgPK6AQYShD8RQYMTtfzbLdBIQkQziv2XJc"
+   },
+   "msgtype":"mpvideo" 
+}
+卡券：
+
+{ "touser":"OPENID", 
+  "wxcard":{              
+           "card_id":"123dsdajkasd231jhksad",
+            "card_ext": "{"code":"","openid":"","timestamp":"1402057159","signature":"017bb17407c8e0058a66d72dcc61632b70f511ad"}"               
+            }, 
+  "msgtype":"wxcard" 
+}
+请注意，上述JSON数据中的touser字段都可以改为towxname，这样就可以针对微信号进行预览（而非openID），towxname和touser同时赋值时，以towxname优先。修改后JSON数据如下（以图文消息为例）： 图文消息：
+
+{
+   "towxname":"示例的微信号", 
+   "mpnews":{              
+            "media_id":"123dsdajkasd231jhksad"               
+             },
+   "msgtype":"mpnews" 
+}
+参数说明
+
+参数	说明
+touser	接收消息用户对应该公众号的openid，该字段也可以改为towxname，以实现对微信号的预览
+msgtype	群发的消息类型，图文消息为mpnews，文本消息为text，语音为voice，音乐为music，图片为image，视频为video，卡券为wxcard
+media_id	用于群发的消息的media_id
+content	发送文本消息时文本的内容
+返回说明
+
+参数	说明
+errcode	错误码
+errmsg	错误信息
+返回数据示例（正确时的JSON返回结果）：
+
+{
+   "errcode":0,
+   "errmsg":"preview success"
+}
+
+7、查询群发消息发送状态【订阅号与服务号认证后均可用】
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/get?access_token=ACCESS_TOKEN
+
+POST数据说明
+
+参数	说明
+msg_id	群发消息后返回的消息id
+POST数据示例如下：
+
+{
+   "msg_id": "201053012"
+}
+返回说明
+
+参数	说明
+msg_id	群发消息后返回的消息id
+msg_status	消息发送后的状态，SEND_SUCCESS表示发送成功，SENDING表示发送中，SEND_FAIL表示发送失败，DELETE表示已删除
+返回数据示例（正确时的JSON返回结果）：
+
+{
+     "msg_id":201053012,
+     "msg_status":"SEND_SUCCESS"
+}
+
+8、事件推送群发结果
+由于群发任务提交后，群发任务可能在一定时间后才完成，因此，群发接口调用时，仅会给出群发任务是否提交成功的提示，若群发任务提交成功，则在群发任务结束时，会向开发者在公众平台填写的开发者URL（callback URL）推送事件。
+需要注意，由于群发任务彻底完成需要较长时间，将会在群发任务即将完成的时候，就推送群发结果，此时的推送人数数据将会与实际情形存在一定误差
+推送的XML结构如下（发送成功时），已增加原创校验结果和群发图文的url：
+<xml> 
+  <ToUserName><![CDATA[gh_4d00ed8d6399]]></ToUserName>  
+  <FromUserName><![CDATA[oV5CrjpxgaGXNHIQigzNlgLTnwic]]></FromUserName>  
+  <CreateTime>1481013459</CreateTime>  
+  <MsgType><![CDATA[event]]></MsgType>  
+  <Event><![CDATA[MASSSENDJOBFINISH]]></Event>  
+  <MsgID>1000001625</MsgID>  
+  <Status><![CDATA[err(30003)]]></Status>  
+  <TotalCount>0</TotalCount>  
+  <FilterCount>0</FilterCount>  
+  <SentCount>0</SentCount>  
+  <ErrorCount>0</ErrorCount>  
+  <CopyrightCheckResult> 
+    <Count>2</Count>  
+    <ResultList> 
+      <item> 
+        <ArticleIdx>1</ArticleIdx>  
+        <UserDeclareState>0</UserDeclareState>  
+        <AuditState>2</AuditState>  
+        <OriginalArticleUrl><![CDATA[Url_1]]></OriginalArticleUrl>  
+        <OriginalArticleType>1</OriginalArticleType>  
+        <CanReprint>1</CanReprint>  
+        <NeedReplaceContent>1</NeedReplaceContent>  
+        <NeedShowReprintSource>1</NeedShowReprintSource> 
+      </item>  
+      <item> 
+        <ArticleIdx>2</ArticleIdx>  
+        <UserDeclareState>0</UserDeclareState>  
+        <AuditState>2</AuditState>  
+        <OriginalArticleUrl><![CDATA[Url_2]]></OriginalArticleUrl>  
+        <OriginalArticleType>1</OriginalArticleType>  
+        <CanReprint>1</CanReprint>  
+        <NeedReplaceContent>1</NeedReplaceContent>  
+        <NeedShowReprintSource>1</NeedShowReprintSource> 
+      </item> 
+    </ResultList>  
+    <CheckState>2</CheckState> 
+  </CopyrightCheckResult> 
+  <ArticleUrlResult>
+     <Count>1</Count>
+     <ResultList>
+       <item>
+         <ArticleIdx>1</ArticleIdx>
+         <ArticleUrl><![CDATA[Url]]></ArticleUrl>
+       </item>
+     </ResultList>
+  </ArticleUrlResult>
+</xml>
+参数说明
+
+参数	说明
+ToUserName	公众号的微信号
+FromUserName	公众号群发助手的微信号，为mphelper
+CreateTime	创建时间的时间戳
+MsgType	消息类型，此处为event
+Event	事件信息，此处为MASSSENDJOBFINISH
+MsgID	群发的消息ID
+Status	群发的结果，为“send success”或“send fail”或“err(num)”。但send success时，也有可能因用户拒收公众号的消息、系统错误等原因造成少量用户接收失败。err(num)是审核失败的具体原因，可能的情况如下：err(10001):涉嫌广告, err(20001):涉嫌政治, err(20004):涉嫌社会, err(20002):涉嫌色情, err(20006):涉嫌违法犯罪, err(20008):涉嫌欺诈, err(20013):涉嫌版权, err(22000):涉嫌互推(互相宣传), err(21000):涉嫌其他, err(93115):公开地图使用不规范,err(30001):原创校验出现系统错误且用户选择了被判为转载就不群发, err(30002): 原创校验被判定为不能群发, err(30003): 原创校验被判定为转载文且用户选择了被判为转载就不群发, err(40001)：管理员拒绝, err(40002)：管理员30分钟内无响应，超时
+TotalCount	tag_id下粉丝数；或者openid_list中的粉丝数
+FilterCount	过滤（过滤是指特定地区、性别的过滤、用户设置拒收的过滤，用户接收已超4条的过滤）后，准备发送的粉丝数，原则上，FilterCount 约等于 SentCount + ErrorCount
+SentCount	发送成功的粉丝数
+ErrorCount	发送失败的粉丝数
+ResultList	各个单图文校验结果
+ArticleIdx	群发文章的序号，从1开始
+UserDeclareState	用户声明文章的状态。0表示用户未声明原创；1表示用户声明原创；2表示用户声明转载
+AuditState	系统校验的状态。0表示尚未未校验原创；1表示校验原创中；11表示校验原创通过；其他表示校验原创未通过
+OriginalArticleUrl	相似原创文的url
+OriginalArticleType	相似原创文的类型。1表示原创文；2表示历史非原创文；3表示新闻类；4表示黑文类
+CanReprint	是否能转载
+NeedReplaceContent	是否需要替换成原创文内容
+NeedShowReprintSource	是否需要注明转载来源
+CheckState	整体校验结果
+CheckState	1-未被判为转载，可以群发，2-被判为转载，可以群发，3-被判为转载，不能群发
+ArticleUrl	群发文章的url
+
+9、使用 clientmsgid 参数，避免重复推送
+群发接口新增 clientmsgid 参数，开发者调用群发接口时可以主动设置 clientmsgid 参数，避免重复推送。
+
+群发时，微信后台将对 24 小时内的群发记录进行检查，如果该 clientmsgid 已经存在一条群发记录，则会拒绝本次群发请求，返回已存在的群发msgid，开发者可以调用“查询群发消息发送状态”接口查看该条群发的状态。
+
+新增错误码
+
+错误码	错误信息
+45065	相同 clientmsgid 已存在群发记录，返回数据中带有已存在的群发任务的 msgid
+45066	相同 clientmsgid 重试速度过快，请间隔1分钟重试
+45067	clientmsgid 长度超过限制
+接口示例及参数描述
+
+{
+    "filter":{
+       "is_to_all":false,
+       "tag_id":2
+    },
+    "mpnews":{
+       "media_id":"123dsdajkasd231jhksad"
+    },
+     "msgtype":"mpnews",
+     "send_ignore_reprint":0,
+ 	 "clientmsgid":"send_tag_2" 
+}
+参数说明
+
+参数	是否必须	说明
+clientmsgid	否	开发者侧群发msgid，长度限制32字节，如不填，则后台默认以群发范围和群发内容的摘要值做为clientmsgid
+返回说明
+
+clientmsgid 冲突时的返回示例： {
+    "errcode":45065,
+    "errmsg":"clientmsgid exist",
+    "msg_id":123456 
+}
+
+10、获取群发速度
+开发者可以使用限速接口来控制群发速度。
+
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/speed/get?access_token=ACCESS_TOKEN
+
+返回说明 正常情况下的返回结果为：
+
+{
+    "speed":3,
+    "realspeed":15
+}
+参数说明
+
+参数	是否必须	说明
+speed	是	群发速度的级别
+realspeed	是	群发速度的真实值 单位：万/分钟
+
+11、设置群发速度
+接口调用请求说明
+
+http请求方式: POST https://api.weixin.qq.com/cgi-bin/message/mass/speed/set?access_token=ACCESS_TOKEN
+
+请求示例
+
+{
+    "speed":1
+}
+参数说明
+
+参数	是否必须	说明
+speed	是	群发速度的级别
+群发速度的级别，是一个0到4的整数，数字越大表示群发速度越慢。
+
+speed 与 realspeed 的关系如下：
+
+speed	realspeed
+0	80w/分钟
+1	60w/分钟
+2	45w/分钟
+3	30w/分钟
+4	10w/分钟
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+45083	设置的 speed 参数不在0到4的范围内	请调整 speed 的值
+45084	没有设置 speed 参数	请设置 speed
+API群发安全保护
+对于开启API群发保护的用户，群发全部用户后需要等待管理员进行确认，如管理员拒绝或30分钟内没有确认，该次群发失败。用户可通过”设置-安全中心-风险操作保护“中关闭API群发保护功能。
+
+错误码说明
+
+错误码	错误信息	解决方案
+公共错误码	点击查看	
+89505	群发进入管理员确认流程	请稍等或联系管理员确认
+89504	群发仍在审批流程中	请稍等或联系管理员确认

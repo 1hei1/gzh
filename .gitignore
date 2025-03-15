@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+.env/
+
+# IDE
+.idea/
+.vscode/
+
+# Project specific
+config.json
+config/config.json
+data/
+img/
+imgs/
+fengmian/
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Logs
+*.log
