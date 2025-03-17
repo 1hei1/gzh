@@ -4,11 +4,14 @@ __pycache__/
 *$py.class
 
 # Ignore Python files in root directory but keep them in subdirectories
-# /*.py
-# /*.txt
-# /*.html
-# /*.json
-# /*.gitignore
+/*.py
+/*.txt
+/*.html
+/*.json
+/*.jpg
+/*.jpeg
+/*.png
+/*.gitignore
 
 # Distribution / packaging
 dist/
