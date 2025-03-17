@@ -28,16 +28,16 @@ env/
 .vscode/
 
 # Project specific
-config.json
-config/config.json
+# config.json
+# config/config.json
 # data/
 # img/
 # imgs/
-fengmian/
-*.jpg
-*.jpeg
-*.png
-*.gif
+# fengmian/
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
 
 # Logs
 *.log
