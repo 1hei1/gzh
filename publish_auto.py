@@ -175,8 +175,8 @@ def create_article(wechat=None, image_paths=None):
     # 动态生成两列图片布局的HTML模板
     html_content = ''
     for i in range(0, len(image_urls), 2):
-        # 最后一组图片的margin-bottom设置为15px，其他组设置为20px
-        margin_bottom = '15px' if i == len(image_urls) - 2 else '20px'
+        # 最后一组图片的margin-bottom设置为5px，其他组设置为8px
+        margin_bottom = '5px' if i == len(image_urls) - 2 else '8px'
         
         html_content += f'''
     <div style="display: flex; justify-content: space-between; margin-bottom: {margin_bottom};">

@@ -17,7 +17,7 @@ from core.check_image import check_image
 from core.compress_image import compress_image
 
 
-def load_config(config_path: str = 'config.json') -> dict:
+def load_config(config_path: str = 'config/config.json') -> dict:
     """加载配置文件"""
     if not os.path.exists(config_path):
         config = {
@@ -183,19 +183,16 @@ def create_article(wechat=None, image_paths=None):
     if len(image_urls) % 2 != 0:
         image_urls = image_urls[:-1]
     
-    # 动态生成两列图片布局的HTML模板
+    # 动态生成单列图片布局的HTML模板
     html_content = ''
-    for i in range(0, len(image_urls), 2):
-        # 最后一组图片的margin-bottom设置为15px，其他组设置为20px
-        margin_bottom = '15px' if i == len(image_urls) - 2 else '20px'
+    for i in range(len(image_urls)):
+        # 最后一张图片的margin-bottom设置为5px，其他图片设置为8px
+        margin_bottom = '5px' if i == len(image_urls) - 1 else '8px'
         
         html_content += f'''
-    <div style="display: flex; justify-content: space-between; margin-bottom: {margin_bottom};">
-        <div style="width: 95%; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; margin-right: 5px;">
+    <div style="margin-bottom: {margin_bottom};">
+        <div style="width: 100%; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
             <img src="{image_urls[i]}" alt="图片{i+1}" style="width: 100%; height: auto; object-fit: cover; display: block;"/>
-        </div>
-        <div style="width: 95%; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
-            <img src="{image_urls[i+1]}" alt="图片{i+2}" style="width: 100%; height: auto; object-fit: cover; display: block;"/>
         </div>
     </div>
     '''
@@ -308,7 +305,7 @@ def main():
                 publish_id = wechat.publish_draft(media_id)
                 print(f'发布任务创建成功，publish_id: {publish_id}')
                 status = wechat.wait_for_publish(publish_id)
-                if status['publish_status'] == 0:
+                if status['msg_status'] == 'SEND_SUCCESS':
                     print('文章发布成功！')
                     if 'article_detail' in status:
                         for item in status['article_detail']['item']:

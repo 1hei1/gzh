@@ -288,7 +288,7 @@ class WeChatArticle:
         response = requests.post(url, json=data)
         result = response.json()
 
-        if result.get('errcode') == 0:
+        if result.get('msg_status') == 'SEND_SUCCESS':
             return result
         else:
             raise Exception(f'查询群发状态失败: {result}')
