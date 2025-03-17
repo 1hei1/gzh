@@ -30,9 +30,9 @@ env/
 # Project specific
 config.json
 config/config.json
-data/
-img/
-imgs/
+# data/
+# img/
+# imgs/
 fengmian/
 *.jpg
 *.jpeg
